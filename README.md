@@ -6,6 +6,9 @@ An Auto Harvesting System
 Delivering a low-cost, automated, open-source hardware and software system.
 This system grows, and processes duckweed—a complete protein that doubles every 16–36 hours.
 
+## 🎓 University Collaboration Opportunity
+The GitHub repository is currently set up with the empty `hardware/` and `software/` directories, specifically prepared for your students to populate with their 3D CAD and firmware solutions. We are actively seeking mechanical engineering and computer science teams to adopt this as a capstone or class project.
+
 ## 📋 Project Status
 - **Current Version:** V6.1
 - **Engineer:** Stephen Sutherland, MD, Systems Engineer
