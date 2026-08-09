@@ -1,0 +1,294 @@
+/* ===========================================================
+   GoSovereign Admin — Design Tokens
+   A control-room instrument, not a marketing page. The palette
+   pairs a botanical duckweed green against a near-black water
+   surface, with amber/red reserved strictly for status meaning.
+   Type: IBM Plex family — an engineering-grade typeface set,
+   because this whole product is a piece of technical equipment.
+=========================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+
+:root{
+  --bg:#0B1310;
+  --bg-elevated:#0F1A16;
+  --surface:#152420;
+  --surface-2:#1B2E28;
+  --surface-hover:#213730;
+  --border:#243830;
+  --border-strong:#33493F;
+  --text-primary:#E9EFEA;
+  --text-secondary:#9FB3A8;
+  --text-muted:#647A70;
+
+  --duckweed:#6FA84A;
+  --duckweed-bright:#8FCB63;
+  --duckweed-dim:#3C5B33;
+  --water:#3E96A3;
+  --water-bright:#63BAC7;
+  --amber:#D9A441;
+  --amber-bright:#F0BE5C;
+  --red:#D9534F;
+  --red-bright:#EB6E6A;
+
+  --font-display:'IBM Plex Sans Condensed', sans-serif;
+  --font-body:'IBM Plex Sans', sans-serif;
+  --font-mono:'IBM Plex Mono', monospace;
+
+  --sidebar-w:224px;
+  --topbar-h:60px;
+  --radius:10px;
+  --radius-sm:6px;
+}
+
+*,*::before,*::after{box-sizing:border-box;}
+html,body{height:100%;}
+body{
+  margin:0;
+  background:var(--bg);
+  background-image:
+    radial-gradient(ellipse at top left, rgba(63,150,163,0.07), transparent 55%),
+    radial-gradient(ellipse at bottom right, rgba(111,168,74,0.06), transparent 55%);
+  background-attachment:fixed;
+  color:var(--text-primary);
+  font-family:var(--font-body);
+  font-size:14px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{
+  font-family:var(--font-display);
+  font-weight:600;
+  letter-spacing:.01em;
+  margin:0 0 4px;
+  color:var(--text-primary);
+}
+a{color:inherit;text-decoration:none;}
+button{font-family:var(--font-body);}
+::selection{background:var(--duckweed-dim);color:#fff;}
+:focus-visible{outline:2px solid var(--water-bright);outline-offset:2px;}
+
+.mono{font-family:var(--font-mono);}
+.eyebrow{
+  font-family:var(--font-display);
+  font-size:11px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--text-muted);
+}
+.muted{color:var(--text-secondary);}
+.hint{color:var(--text-muted);font-size:12px;}
+
+/* ---------- App shell ---------- */
+#sidebar{
+  position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:var(--bg-elevated);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  z-index:40;
+  transition:transform .2s ease;
+}
+#topbar{
+  position:fixed;top:0;left:var(--sidebar-w);right:0;height:var(--topbar-h);
+  background:rgba(11,19,16,0.86);
+  backdrop-filter:blur(8px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:18px;
+  padding:0 20px;
+  z-index:30;
+}
+.content{
+  margin-left:var(--sidebar-w);
+  padding:calc(var(--topbar-h) + 24px) 28px 60px;
+  max-width:1400px;
+}
+.brand{
+  display:flex;align-items:center;gap:10px;
+  padding:18px 18px 16px;
+  border-bottom:1px solid var(--border);
+}
+.brand-mark{width:30px;height:34px;flex:none;}
+.brand-text{font-family:var(--font-display);font-weight:700;font-size:15px;line-height:1.1;}
+.brand-text span{display:block;font-family:var(--font-mono);font-weight:400;font-size:10px;letter-spacing:.08em;color:var(--text-muted);margin-top:2px;}
+
+.nav-group{padding:14px 10px;}
+.nav-label{padding:0 10px;margin-bottom:6px;}
+.nav-link{
+  display:flex;align-items:center;gap:10px;
+  padding:9px 10px;margin-bottom:2px;
+  border-radius:var(--radius-sm);
+  color:var(--text-secondary);
+  font-size:13.5px;font-weight:500;
+  border-left:2px solid transparent;
+}
+.nav-link svg{flex:none;opacity:.85;}
+.nav-link:hover{background:var(--surface-hover);color:var(--text-primary);}
+.nav-link.active{
+  background:var(--surface-2);
+  color:var(--duckweed-bright);
+  border-left-color:var(--duckweed);
+}
+.nav-badge{
+  margin-left:auto;font-family:var(--font-mono);font-size:10.5px;
+  background:var(--surface);border:1px solid var(--border-strong);
+  color:var(--text-secondary);padding:1px 6px;border-radius:20px;
+}
+.nav-badge.alert{color:var(--red-bright);border-color:var(--red);background:rgba(217,83,79,.12);}
+
+.sidebar-foot{
+  margin-top:auto;padding:14px 18px;border-top:1px solid var(--border);
+  font-size:11px;color:var(--text-muted);
+}
+
+.topbar-title{font-family:var(--font-display);font-size:16px;font-weight:600;margin-right:auto;}
+.topbar-title span{color:var(--text-muted);font-weight:500;font-size:12px;display:block;font-family:var(--font-mono);margin-top:1px;}
+.status-chip{
+  display:flex;align-items:center;gap:6px;
+  font-family:var(--font-mono);font-size:11.5px;color:var(--text-secondary);
+  background:var(--surface);border:1px solid var(--border-strong);
+  padding:5px 10px;border-radius:20px;
+}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--duckweed-bright);box-shadow:0 0 0 3px rgba(143,203,99,.15);}
+.status-dot.warn{background:var(--amber-bright);box-shadow:0 0 0 3px rgba(240,190,92,.15);}
+.status-dot.bad{background:var(--red-bright);box-shadow:0 0 0 3px rgba(235,110,106,.15);}
+.status-dot.pulse{animation:pulse 1.6s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+.menu-btn{display:none;background:none;border:1px solid var(--border-strong);color:var(--text-primary);border-radius:var(--radius-sm);width:34px;height:34px;align-items:center;justify-content:center;}
+
+/* ---------- Layout helpers ---------- */
+.page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap;}
+.grid{display:grid;gap:16px;}
+.grid-metrics{grid-template-columns:repeat(auto-fit,minmax(168px,1fr));}
+.grid-2{grid-template-columns:2fr 1fr;}
+.grid-robots{grid-template-columns:repeat(auto-fill,minmax(260px,1fr));}
+.grid-racks{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));}
+.stack{display:flex;flex-direction:column;gap:16px;}
+.row{display:flex;align-items:center;gap:10px;}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:10px;}
+.section{margin-bottom:32px;}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
+
+/* ---------- Card ---------- */
+.card{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:16px;
+}
+.card-tight{padding:12px;}
+.card-hover:hover{border-color:var(--border-strong);background:var(--surface-2);cursor:pointer;}
+
+/* ---------- Metric tile ---------- */
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;}
+.metric-label{font-family:var(--font-display);font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px;}
+.metric-value{font-family:var(--font-mono);font-size:26px;font-weight:600;line-height:1;}
+.metric-value small{font-size:13px;color:var(--text-secondary);font-weight:400;margin-left:2px;}
+.metric-sub{margin-top:6px;font-size:11.5px;color:var(--text-muted);}
+.metric-bar{margin-top:10px;height:5px;border-radius:4px;background:var(--surface-2);overflow:hidden;}
+.metric-bar > i{display:block;height:100%;background:var(--water);border-radius:4px;}
+.metric.warn .metric-value{color:var(--amber-bright);}
+.metric.bad .metric-value{color:var(--red-bright);}
+.metric.good .metric-value{color:var(--duckweed-bright);}
+
+/* ---------- Badges / pills ---------- */
+.pill{
+  display:inline-flex;align-items:center;gap:5px;
+  font-family:var(--font-mono);font-size:11px;font-weight:500;
+  padding:3px 9px;border-radius:20px;border:1px solid transparent;white-space:nowrap;
+}
+.pill-idle{background:rgba(159,179,168,.12);color:var(--text-secondary);border-color:var(--border-strong);}
+.pill-good{background:rgba(111,168,74,.14);color:var(--duckweed-bright);border-color:var(--duckweed-dim);}
+.pill-active{background:rgba(62,150,163,.16);color:var(--water-bright);border-color:#28626B;}
+.pill-warn{background:rgba(217,164,65,.14);color:var(--amber-bright);border-color:#7A5B23;}
+.pill-bad{background:rgba(217,83,79,.16);color:var(--red-bright);border-color:#7A2F2D;}
+.pill-dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+.sev-critical{color:var(--red-bright);}
+.sev-warning{color:var(--amber-bright);}
+.sev-info{color:var(--water-bright);}
+
+/* ---------- Buttons ---------- */
+.btn{
+  font-family:var(--font-body);font-size:13px;font-weight:600;
+  border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+  padding:8px 14px;background:var(--surface-2);color:var(--text-primary);
+  display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  transition:background .12s,border-color .12s;
+}
+.btn:hover{background:var(--surface-hover);border-color:var(--water);}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--duckweed-dim);border-color:var(--duckweed);color:#EFFAE8;}
+.btn-primary:hover{background:#4C7238;}
+.btn-danger{background:rgba(217,83,79,.14);border-color:var(--red);color:var(--red-bright);}
+.btn-danger:hover{background:rgba(217,83,79,.25);}
+.btn-ghost{background:transparent;border-color:var(--border-strong);}
+.btn-sm{padding:5px 10px;font-size:12px;}
+.btn-block{width:100%;justify-content:center;}
+.btn-icon{width:34px;height:34px;padding:0;justify-content:center;flex:none;}
+
+/* ---------- Forms ---------- */
+label{display:block;font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:6px;}
+select,input[type=text],input[type=number]{
+  width:100%;background:var(--bg-elevated);border:1px solid var(--border-strong);
+  color:var(--text-primary);border-radius:var(--radius-sm);padding:9px 10px;font-size:13.5px;font-family:var(--font-body);
+}
+input[type=range]{width:100%;accent-color:var(--duckweed);}
+.field{margin-bottom:16px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+
+/* ---------- Table ---------- */
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{
+  text-align:left;font-family:var(--font-display);font-size:10.5px;font-weight:600;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--text-muted);
+  padding:8px 12px;border-bottom:1px solid var(--border-strong);
+}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surface-2);}
+
+/* ---------- Rack elevation glyph (signature element) ----------
+   A vertical schematic of a rack: 7 tier bands over a base
+   reservoir circle. Fill height of each band ~ duckweed coverage.
+------------------------------------------------------------- */
+.rack-elev{display:flex;flex-direction:column;gap:2px;width:100%;}
+.tier-band{
+  position:relative;height:15px;border-radius:2px;
+  background:var(--bg-elevated);border:1px solid var(--border-strong);overflow:hidden;
+}
+.tier-band > i{position:absolute;left:0;bottom:0;top:0;background:var(--duckweed);opacity:.85;}
+.tier-band.anaerobic > i{background:var(--red);}
+.tier-band.flagged{border-color:var(--amber);}
+.tier-band .tier-tag{position:absolute;left:5px;top:50%;transform:translateY(-50%);font-family:var(--font-mono);font-size:9px;color:var(--text-primary);mix-blend-mode:difference;z-index:2;}
+.rack-base{height:10px;border-radius:0 0 4px 4px;background:linear-gradient(180deg,var(--water-bright),var(--water));margin-top:2px;opacity:.7;}
+
+/* ---------- Toast / overlay ---------- */
+#toast-host{position:fixed;bottom:22px;left:calc(var(--sidebar-w) + 24px);z-index:100;display:flex;flex-direction:column;gap:8px;}
+.toast{
+  background:var(--surface-2);border:1px solid var(--border-strong);
+  border-left:3px solid var(--water);color:var(--text-primary);
+  padding:11px 16px;border-radius:var(--radius-sm);font-size:13px;
+  box-shadow:0 8px 24px rgba(0,0,0,.35);min-width:240px;
+  animation:toast-in .18s ease;
+}
+@keyframes toast-in{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+
+.modal-backdrop{position:fixed;inset:0;background:rgba(6,10,8,.65);backdrop-filter:blur(2px);z-index:90;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal{background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--radius);max-width:440px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.5);}
+
+/* ---------- Empty state ---------- */
+.empty{padding:36px 20px;text-align:center;color:var(--text-muted);border:1px dashed var(--border-strong);border-radius:var(--radius);}
+
+/* ---------- Responsive ---------- */
+@media (max-width:920px){
+  :root{--sidebar-w:224px;}
+  #sidebar{transform:translateX(-100%);}
+  #sidebar.open{transform:translateX(0);}
+  #topbar{left:0;}
+  .content{margin-left:0;padding-left:18px;padding-right:18px;}
+  .menu-btn{display:flex;}
+  .grid-2{grid-template-columns:1fr;}
+  #toast-host{left:16px;right:16px;}
+}
