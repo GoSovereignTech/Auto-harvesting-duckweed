@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robots — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body data-page="robots">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>Robot fleet</h1>
+      <p class="muted" style="margin:0;">Select a robot to drill down into its telemetry, activity report and camera history.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-robots" id="fleetGrid" style="margin-bottom:28px;"></div>
+
+  <div id="detailPanel"></div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('robots');
+const M = window.MOCK;
+const params = new URLSearchParams(location.search);
+let selectedId = params.get('id') || M.robots[0].id;
+
+const statusPill = {
+  harvesting:'active', traveling:'active', inspecting:'active',
+  idle:'idle', charging:'idle', cleaning:'warn', error:'bad',
+};
+
+function renderFleet(){
+  document.getElementById('fleetGrid').innerHTML = M.robots.map(r=>`
+    <div class="card card-hover ${r.id===selectedId?'card-selected':''}" data-id="${r.id}"
+         style="border-color:${r.id===selectedId?'var(--water)':''};cursor:pointer;">
+      <div class="row-between" style="margin-bottom:8px;">
+        <span style="font-weight:600;">${r.id}</span>
+        <span class="pill pill-${statusPill[r.status]}"><span class="pill-dot"></span>${r.status}</span>
+      </div>
+      <div class="muted" style="font-size:12.5px;margin-bottom:10px;">${r.task}</div>
+      <div class="row-between" style="font-size:12px;">
+        <span class="muted">Battery</span><span class="mono">${r.battery}%</span>
+      </div>
+      <div class="metric-bar" style="margin-top:4px;margin-bottom:2px;"><i style="width:${r.battery}%;background:${r.battery<25?'var(--red)':r.battery<50?'var(--amber)':'var(--water)'}"></i></div>
+    </div>
+  `).join('');
+  document.querySelectorAll('#fleetGrid .card').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      selectedId = el.dataset.id;
+      history.replaceState(null,'','robots.html?id='+selectedId);
+      renderFleet(); renderDetail();
+      document.getElementById('detailPanel').scrollIntoView({behavior:'smooth', block:'start'});
+    });
+  });
+}
+
+function renderDetail(){
+  const r = M.findRobot(selectedId);
+  const rack = M.findRack(r.rackId);
+  const relatedSnaps = M.snapshots.filter(s=>s.robotId===r.id).slice(0,4);
+
+  document.getElementById('detailPanel').innerHTML = `
+    <div class="card" style="margin-bottom:20px;">
+      <div class="row-between" style="flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+        <div>
+          <div class="eyebrow">Drill-down</div>
+          <h2 style="margin-top:2px;">${r.label} <span class="pill pill-${statusPill[r.status]}" style="margin-left:8px;vertical-align:2px;"><span class="pill-dot"></span>${r.status}</span></h2>
+          <p class="muted" style="margin:2px 0 0;">${r.task}</p>
+        </div>
+        <div class="row">
+          <button class="btn btn-primary" id="locateBtn">📍 Locate &amp; ping robot</button>
+          <a class="btn btn-ghost" href="racks.html?rack=${r.rackId}">View its rack</a>
+        </div>
+      </div>
+
+      <div class="grid grid-metrics" style="margin-bottom:18px;">
+        <div class="metric"><div class="metric-label">Position</div><div class="metric-value" style="font-size:16px;">${r.position}</div></div>
+        <div class="metric"><div class="metric-label">Battery</div><div class="metric-value">${r.battery}<small>%</small></div></div>
+        <div class="metric"><div class="metric-label">GPS fix</div><div class="metric-value mono" style="font-size:15px;">${r.gps.lat.toFixed(4)}, ${r.gps.lng.toFixed(4)}</div></div>
+        <div class="metric"><div class="metric-label">Last check-in</div><div class="metric-value" style="font-size:16px;">${M.fmtRel(r.lastSeen)}</div></div>
+      </div>
+
+      <div class="grid grid-2">
+        <div>
+          <div class="section-head"><h3 style="font-size:14px;">Activity report</h3></div>
+          <div class="card card-tight" style="max-height:280px;overflow:auto;">
+            <table>
+              <tbody>
+                ${r.log.slice().reverse().map(e=>`
+                  <tr><td class="mono hint" style="white-space:nowrap;width:70px;">${M.fmtTime(e.time)}</td><td>${e.message}</td></tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div>
+          <div class="section-head"><h3 style="font-size:14px;">Recent camera captures</h3></div>
+          ${relatedSnaps.length ? `
+          <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;">
+            ${relatedSnaps.map(s=>`
+              <a class="card card-hover card-tight" href="snapshots.html?tier=${s.tierId}" style="text-decoration:none;">
+                <canvas width="120" height="72" style="width:100%;border-radius:4px;display:block;" data-snap="${s.id}"></canvas>
+                <div class="hint mono" style="margin-top:6px;">${s.tierId} · ${M.fmtRel(s.time)}</div>
+              </a>
+            `).join('')}
+          </div>` : `<div class="empty">No captures logged for this robot yet.</div>`}
+        </div>
+      </div>
+    </div>
+  `;
+  document.getElementById('locateBtn').addEventListener('click', ()=> APP.locateRobot(r));
+  relatedSnaps.forEach(s=>{
+    const c = document.querySelector(`canvas[data-snap="${s.id}"]`);
+    if(c) M.drawRGB(c, s.coverageReading, s.id);
+  });
+}
+
+renderFleet();
+renderDetail();
+</script>
+</body>
+</html>

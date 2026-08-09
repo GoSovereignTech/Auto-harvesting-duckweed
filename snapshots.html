@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image Review — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .snap-card canvas{width:100%;aspect-ratio:16/9;border-radius:6px;display:block;background:#0a1512;}
+  .snap-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0;}
+  .snap-pair-label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px;}
+  .filter-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;}
+  .filter-bar select{width:auto;min-width:150px;}
+</style>
+</head>
+<body data-page="snapshots">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>Image review</h1>
+      <p class="muted" style="margin:0;">RGB coverage scans and multispectral damage scans, per tier visit — confirm or override what the robot concluded.</p>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <select id="fRack"><option value="ALL">All racks</option></select>
+    <select id="fFlag">
+      <option value="ALL">All captures</option>
+      <option value="damage">Damage flagged</option>
+      <option value="unreviewed">Awaiting human review</option>
+    </select>
+  </div>
+
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));" id="snapGrid"></div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('snapshots');
+const M = window.MOCK;
+const params = new URLSearchParams(location.search);
+
+document.getElementById('fRack').insertAdjacentHTML('beforeend', M.racks.map(r=>`<option value="${r.id}">${r.id}</option>`).join(''));
+if(params.get('tier')){
+  const t = M.findTier(params.get('tier'));
+  if(t) document.getElementById('fRack').value = t.rackId;
+}
+
+const reviewState = {}; // id -> 'confirmed' | 'overridden'
+
+function matches(s){
+  const rackVal = document.getElementById('fRack').value;
+  const flagVal = document.getElementById('fFlag').value;
+  if(rackVal!=='ALL' && s.rackId!==rackVal) return false;
+  if(flagVal==='damage' && !s.damageDetected) return false;
+  if(flagVal==='unreviewed' && (reviewState[s.id] || s.reviewed)) return false;
+  return true;
+}
+
+function render(){
+  const list = M.snapshots.filter(matches).slice(0,24);
+  const grid = document.getElementById('snapGrid');
+  if(!list.length){ grid.innerHTML = `<div class="empty" style="grid-column:1/-1;">No captures match this filter.</div>`; return; }
+  grid.innerHTML = list.map(s=>`
+    <div class="card snap-card" data-id="${s.id}">
+      <div class="row-between" style="margin-bottom:8px;">
+        <span class="mono" style="font-weight:600;font-size:12.5px;">${s.tierId}</span>
+        <span class="hint">${M.fmtRel(s.time)}</span>
+      </div>
+      <div class="snap-pair">
+        <div><div class="snap-pair-label">RGB — coverage scan</div><canvas data-role="rgb" width="220" height="124"></canvas></div>
+        <div><div class="snap-pair-label">Spectral — damage scan</div><canvas data-role="spec" width="220" height="124"></canvas></div>
+      </div>
+      <div class="row-between" style="margin-bottom:10px;">
+        <span class="hint">Robot ${s.robotId}</span>
+        <span class="pill pill-${s.coverageReading>=80?'warn':'good'}">${s.coverageReading}% cover</span>
+        ${s.damageDetected ? `<span class="pill pill-bad"><span class="pill-dot"></span>damage flagged</span>` : ''}
+      </div>
+      <div class="row" id="review-${s.id}"></div>
+    </div>
+  `).join('');
+
+  list.forEach(s=>{
+    const card = grid.querySelector(`[data-id="${s.id}"]`);
+    M.drawRGB(card.querySelector('[data-role="rgb"]'), s.coverageReading, s.id);
+    M.drawSpectral(card.querySelector('[data-role="spec"]'), s.damageDetected, s.id);
+    renderReview(s);
+  });
+}
+
+function renderReview(s){
+  const state = reviewState[s.id] || s.reviewed;
+  const host = document.getElementById('review-'+s.id);
+  if(state){
+    host.innerHTML = `<span class="pill pill-${state==='confirmed'?'good':'warn'}"><span class="pill-dot"></span>${state==='confirmed'?'confirmed by admin':'overridden by admin'}</span>`;
+    return;
+  }
+  host.innerHTML = `
+    <button class="btn btn-sm" data-confirm="${s.id}" style="flex:1;">✓ Confirm reading</button>
+    <button class="btn btn-sm btn-danger" data-override="${s.id}" style="flex:1;">Override</button>
+  `;
+  host.querySelector(`[data-confirm]`).addEventListener('click', ()=>{ reviewState[s.id]='confirmed'; renderReview(s); APP.toast(`${s.tierId} capture confirmed`, {color:'var(--duckweed-bright)'}); });
+  host.querySelector(`[data-override]`).addEventListener('click', ()=>{ reviewState[s.id]='overridden'; renderReview(s); APP.toast(`${s.tierId} capture overridden — flagged for engineering review`, {color:'var(--amber-bright)'}); });
+}
+
+document.getElementById('fRack').addEventListener('change', render);
+document.getElementById('fFlag').addEventListener('change', render);
+render();
+</script>
+</body>
+</html>

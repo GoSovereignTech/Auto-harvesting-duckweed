@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin Controls — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body data-page="controls">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>Admin controls</h1>
+      <p class="muted" style="margin:0;">Every action here sends one instruction packet to the target rack, tier or robot. Nothing here is destructive by itself — confirm before it dispatches.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="stack">
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:2px;">01 — Lighting</div>
+        <h3>LED grow lights</h3>
+        <p class="muted" style="font-size:12.5px;margin:2px 0 16px;">Set level and daily duration for a rack, or apply to the whole facility.</p>
+        <div class="field-row">
+          <div class="field">
+            <label for="ledRack">Target</label>
+            <select id="ledRack"><option value="ALL">All racks</option></select>
+          </div>
+          <div class="field">
+            <label for="ledLevel">Intensity — <span id="ledLevelVal">70</span>%</label>
+            <input type="range" id="ledLevel" min="0" max="100" value="70">
+          </div>
+        </div>
+        <div class="field">
+          <label for="ledHours">Daily duration — <span id="ledHoursVal">14</span> hrs</label>
+          <input type="range" id="ledHours" min="4" max="20" value="14">
+        </div>
+        <button class="btn btn-primary btn-block" id="ledApply">Apply lighting schedule</button>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:2px;">02 — Rack protocol</div>
+        <h3>Cleaning vs. normal harvesting</h3>
+        <p class="muted" style="font-size:12.5px;margin:2px 0 16px;">Full rack cleaning: 5× flush, repeated skimmer sweep, PAA biofilm soak &amp; rinse. Use when a rack has gone anaerobic.</p>
+        <div class="field">
+          <label for="protoRack">Rack</label>
+          <select id="protoRack"></select>
+        </div>
+        <div class="row">
+          <button class="btn btn-block" id="normalProto">Normal harvesting protocol</button>
+          <button class="btn btn-danger btn-block" id="cleanProto">Full rack cleaning protocol</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:2px;">05 — Queue</div>
+        <h3>Harvest queue</h3>
+        <p class="muted" style="font-size:12.5px;margin:2px 0 16px;">Reorder or bulk-manage the harvest queue.</p>
+        <a class="btn btn-primary btn-block" href="queue.html">Open harvest queue →</a>
+      </div>
+    </div>
+
+    <div class="stack">
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:2px;">03 &amp; 04 — Harvest actions</div>
+        <h3>Initiate / cancel a harvest</h3>
+        <p class="muted" style="font-size:12.5px;margin:2px 0 16px;">Choose a rack and tier directly, or jump into the rack view for full sensor context.</p>
+        <div class="field-row">
+          <div class="field">
+            <label for="hRack">Rack</label>
+            <select id="hRack"></select>
+          </div>
+          <div class="field">
+            <label for="hTier">Tier</label>
+            <select id="hTier"></select>
+          </div>
+        </div>
+        <div id="tierPreview" class="card card-tight" style="margin-bottom:16px;"></div>
+        <div class="row">
+          <button class="btn btn-primary btn-block" id="initBtn">Initiate harvest</button>
+          <button class="btn btn-danger btn-block" id="cancelBtn">Cancel harvest</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="eyebrow" style="margin-bottom:2px;">Recent admin actions</div>
+        <h3>Action log</h3>
+        <div id="actionLog" class="stack" style="gap:8px;margin-top:10px;"></div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('controls');
+const M = window.MOCK;
+const rackOptEls = M.racks.map(r=>`<option value="${r.id}">${r.id} — ${r.position}</option>`).join('');
+document.getElementById('ledRack').insertAdjacentHTML('beforeend', rackOptEls);
+document.getElementById('protoRack').innerHTML = rackOptEls;
+document.getElementById('hRack').innerHTML = rackOptEls;
+
+const ledLevel = document.getElementById('ledLevel'), ledLevelVal = document.getElementById('ledLevelVal');
+ledLevel.addEventListener('input', ()=> ledLevelVal.textContent = ledLevel.value);
+const ledHours = document.getElementById('ledHours'), ledHoursVal = document.getElementById('ledHoursVal');
+ledHours.addEventListener('input', ()=> ledHoursVal.textContent = ledHours.value);
+
+const actions = [];
+function logAction(text, color){
+  actions.unshift({text, time:new Date(), color});
+  document.getElementById('actionLog').innerHTML = actions.slice(0,8).map(a=>`
+    <div class="row" style="font-size:12.5px;">
+      <span class="status-dot" style="background:${a.color};box-shadow:none;"></span>
+      <span style="flex:1;">${a.text}</span>
+      <span class="hint mono">${a.time.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}</span>
+    </div>`).join('');
+}
+
+document.getElementById('ledApply').addEventListener('click', ()=>{
+  const target = document.getElementById('ledRack').value;
+  const label = target==='ALL' ? 'all racks' : target;
+  const msg = `LED set to ${ledLevel.value}% for ${ledHours.value}h/day — ${label}`;
+  APP.toast(msg, {color:'var(--amber-bright)'}); logAction(msg, 'var(--amber-bright)');
+});
+document.getElementById('normalProto').addEventListener('click', ()=>{
+  const r = document.getElementById('protoRack').value;
+  const msg = `Normal harvesting protocol confirmed for ${r}`;
+  APP.toast(msg, {color:'var(--water-bright)'}); logAction(msg, 'var(--water-bright)');
+});
+document.getElementById('cleanProto').addEventListener('click', ()=>{
+  const r = document.getElementById('protoRack').value;
+  const msg = `Full rack cleaning protocol queued for ${r} — 5× flush, skimmer sweep, PAA soak`;
+  APP.toast(msg, {color:'var(--red-bright)'}); logAction(msg, 'var(--red-bright)');
+});
+
+function populateTiers(){
+  const rack = M.findRack(document.getElementById('hRack').value);
+  document.getElementById('hTier').innerHTML = rack.tiers.map(t=>`<option value="${t.tier}">Tier ${t.tier} — ${t.coverage}% coverage</option>`).join('');
+  renderPreview();
+}
+function renderPreview(){
+  const rack = M.findRack(document.getElementById('hRack').value);
+  const tier = rack.tiers.find(t=>t.tier===+document.getElementById('hTier').value);
+  document.getElementById('tierPreview').innerHTML = `
+    <div class="row-between">
+      <span class="mono" style="font-weight:600;">${tier.id}</span>
+      <span class="pill pill-${tier.anaerobic?'bad':tier.status==='ready'?'warn':tier.status==='harvesting'?'active':'good'}"><span class="pill-dot"></span>${tier.anaerobic?'anaerobic':tier.status}</span>
+    </div>
+    <div class="hint" style="margin-top:6px;">Coverage ${tier.coverage}% · last harvest ${M.fmtRel(tier.lastHarvest)}</div>
+  `;
+}
+document.getElementById('hRack').addEventListener('change', populateTiers);
+document.getElementById('hTier').addEventListener('change', renderPreview);
+populateTiers();
+
+document.getElementById('initBtn').addEventListener('click', ()=>{
+  const rack = document.getElementById('hRack').value, tier = document.getElementById('hTier').value;
+  const msg = `Harvest initiated: ${rack} T${tier}`;
+  APP.toast(msg, {color:'var(--duckweed-bright)'}); logAction(msg, 'var(--duckweed-bright)');
+});
+document.getElementById('cancelBtn').addEventListener('click', ()=>{
+  const rack = document.getElementById('hRack').value, tier = document.getElementById('hTier').value;
+  const msg = `Harvest cancelled: ${rack} T${tier}`;
+  APP.toast(msg, {color:'var(--red-bright)'}); logAction(msg, 'var(--red-bright)');
+});
+
+logAction('Session started — mock control layer', 'var(--water-bright)');
+</script>
+</body>
+</html>

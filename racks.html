@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Racks &amp; Tiers — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .rack-list-item{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:6px;cursor:pointer;}
+  .rack-list-item:hover{background:var(--surface-hover);}
+  .rack-list-item.active{background:var(--surface-2);border:1px solid var(--border-strong);}
+  .rack-list-item .rack-elev{width:34px;}
+  .tier-row{display:grid;grid-template-columns:52px 1fr 90px 130px 200px;gap:14px;align-items:center;padding:10px 8px;border-bottom:1px solid var(--border);}
+  .tier-row:last-child{border-bottom:none;}
+  .tier-row:hover{background:var(--surface-2);}
+  .cov-bar{height:8px;border-radius:5px;background:var(--bg-elevated);overflow:hidden;border:1px solid var(--border-strong);}
+  .cov-bar > i{display:block;height:100%;background:var(--duckweed);}
+</style>
+</head>
+<body data-page="racks">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>Racks &amp; tiers</h1>
+      <p class="muted" style="margin:0;">Each rack: surge container → hydrocyclone → main reservoir, 7 harvesting tiers above.</p>
+    </div>
+  </div>
+
+  <div class="grid" style="grid-template-columns:230px 1fr;align-items:start;">
+    <div class="card card-tight" style="max-height:76vh;overflow:auto;">
+      <div class="eyebrow" style="padding:4px 6px 8px;">12 racks</div>
+      <div id="rackList"></div>
+    </div>
+
+    <div id="rackDetail"></div>
+  </div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('racks');
+const M = window.MOCK;
+const params = new URLSearchParams(location.search);
+let selectedRackId = params.get('rack') || M.racks[0].id;
+
+function rackWorstStatus(r){
+  if(r.tiers.some(t=>t.anaerobic)) return 'bad';
+  if(r.tiers.some(t=>t.status==='ready')) return 'warn';
+  return 'good';
+}
+
+function renderList(){
+  document.getElementById('rackList').innerHTML = M.racks.map(r=>{
+    const worst = rackWorstStatus(r);
+    return `
+    <div class="rack-list-item ${r.id===selectedRackId?'active':''}" data-id="${r.id}">
+      <div class="rack-elev">
+        ${r.tiers.map(t=>`<div class="tier-band ${t.anaerobic?'anaerobic':''}" style="height:6px;"><i style="width:${t.coverage}%"></i></div>`).join('')}
+      </div>
+      <div style="flex:1;">
+        <div class="mono" style="font-size:12.5px;font-weight:600;">${r.id}</div>
+        <div class="hint">${r.position}</div>
+      </div>
+      <span class="status-dot ${worst==='bad'?'bad':worst==='warn'?'warn':''}"></span>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.rack-list-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      selectedRackId = el.dataset.id;
+      history.replaceState(null,'','racks.html?rack='+selectedRackId);
+      renderList(); renderDetail();
+    });
+  });
+}
+
+const statusPillMap = { anaerobic:'bad', ready:'warn', harvesting:'active', growing:'good' };
+const statusLabel = { anaerobic:'anaerobic', ready:'ready to harvest', harvesting:'harvesting', growing:'growing' };
+
+function renderDetail(){
+  const r = M.findRack(selectedRackId);
+  const anyAnaerobic = r.tiers.some(t=>t.anaerobic);
+
+  document.getElementById('rackDetail').innerHTML = `
+    <div class="card" style="margin-bottom:16px;">
+      <div class="row-between" style="flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+        <div>
+          <div class="eyebrow">Rack</div>
+          <h2 style="margin-top:2px;">${r.id}</h2>
+          <p class="muted" style="margin:2px 0 0;">${r.position} · GPS ${r.gps.lat.toFixed(4)}, ${r.gps.lng.toFixed(4)}</p>
+        </div>
+        <div class="row">
+          <button class="btn ${anyAnaerobic?'btn-danger':'btn-ghost'}" id="cleanBtn">
+            ${anyAnaerobic?'⚠ ':''}Start full rack cleaning
+          </button>
+        </div>
+      </div>
+
+      <div class="grid grid-metrics">
+        <div class="metric"><div class="metric-label">pH</div><div class="metric-value">${r.ph}</div></div>
+        <div class="metric"><div class="metric-label">Dissolved O₂</div><div class="metric-value">${r.dox}<small>mg/L</small></div></div>
+        <div class="metric"><div class="metric-label">ORP</div><div class="metric-value">${r.orp}<small>mV</small></div></div>
+        <div class="metric ${r.reservoirLevel<60?'warn':''}">
+          <div class="metric-label">Reservoir level</div>
+          <div class="metric-value">${r.reservoirLevel}<small>%</small></div>
+          <div class="metric-bar"><i style="width:${r.reservoirLevel}%"></i></div>
+          ${r.makeupActive?'<div class="metric-sub">make-up water active</div>':''}
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head"><h3 style="font-size:14px;">Tier detail — base to top</h3></div>
+      <div class="tier-row hint" style="border-bottom:1px solid var(--border-strong);">
+        <div class="eyebrow">Tier</div><div class="eyebrow">Coverage</div><div class="eyebrow">Status</div><div class="eyebrow">Last harvest</div><div class="eyebrow">Actions</div>
+      </div>
+      ${r.tiers.map(t=>`
+        <div class="tier-row">
+          <div class="mono" style="font-weight:600;">T${t.tier}</div>
+          <div class="row"><div class="cov-bar" style="flex:1;"><i style="width:${t.coverage}%;background:${t.anaerobic?'var(--red)':t.coverage>=80?'var(--amber)':'var(--duckweed)'}"></i></div><span class="mono hint" style="width:38px;">${t.coverage}%</span></div>
+          <span class="pill pill-${statusPillMap[t.status]}"><span class="pill-dot"></span>${statusLabel[t.status]}</span>
+          <span class="hint">${M.fmtRel(t.lastHarvest)}</span>
+          <div class="row">
+            ${t.status==='harvesting'
+              ? `<button class="btn btn-danger btn-sm" data-cancel="${t.id}">Cancel harvest</button>`
+              : `<button class="btn btn-sm" data-init="${t.id}" ${t.anaerobic?'disabled title="tier anaerobic — clean first"':''}>Initiate harvest</button>`
+            }
+            <a class="btn btn-ghost btn-sm" href="snapshots.html?tier=${t.id}">Images</a>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  document.getElementById('cleanBtn').addEventListener('click', ()=>{
+    APP.toast(`Full rack cleaning protocol queued for ${r.id} — 5× flush, skimmer sweep, PAA soak.`, {color:'var(--amber-bright)'});
+  });
+  document.querySelectorAll('[data-init]').forEach(b=> b.addEventListener('click', ()=>{
+    APP.toast(`Harvest initiated: ${b.dataset.init}`, {color:'var(--duckweed-bright)'});
+  }));
+  document.querySelectorAll('[data-cancel]').forEach(b=> b.addEventListener('click', ()=>{
+    APP.toast(`Harvest cancelled: ${b.dataset.cancel}`, {color:'var(--red-bright)'});
+  }));
+}
+
+renderList();
+renderDetail();
+</script>
+</body>
+</html>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harvest Queue — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .q-row{display:grid;grid-template-columns:34px 1fr 110px 130px 90px 190px;gap:14px;align-items:center;padding:12px 10px;border-bottom:1px solid var(--border);}
+  .q-row:last-child{border-bottom:none;}
+  .q-row.dragging{opacity:.4;}
+  .q-handle{cursor:grab;color:var(--text-muted);font-size:16px;user-select:none;}
+  .q-pos{width:26px;height:26px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border-strong);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:11.5px;color:var(--text-secondary);}
+  .q-row.next-up .q-pos{background:var(--duckweed-dim);border-color:var(--duckweed);color:#EFFAE8;}
+</style>
+</head>
+<body data-page="queue">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>Harvest queue</h1>
+      <p class="muted" style="margin:0;">Tiers at ≥80% coverage queue automatically; drag to reprioritize or cancel a pending job.</p>
+    </div>
+    <div class="hint mono" id="qCount"></div>
+  </div>
+
+  <div class="grid grid-metrics" style="margin-bottom:22px;" id="qMetrics"></div>
+
+  <div class="card" style="padding:6px 8px;">
+    <div class="q-row hint" style="border-bottom:1px solid var(--border-strong);">
+      <div></div><div class="eyebrow">Tier</div><div class="eyebrow">Coverage</div><div class="eyebrow">Queued</div><div class="eyebrow">ETA</div><div class="eyebrow">Actions</div>
+    </div>
+    <div id="queueList"></div>
+  </div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('queue');
+const M = window.MOCK;
+let queue = M.queue.slice();
+
+function renderMetrics(){
+  const nextUp = queue.filter(q=>q.status==='next-up').length;
+  const inProg = queue.filter(q=>q.status==='in-progress').length;
+  const totalEta = queue.reduce((a,q)=>a+q.etaMin,0);
+  document.getElementById('qMetrics').innerHTML = `
+    <div class="metric"><div class="metric-label">Queued jobs</div><div class="metric-value">${queue.length}</div></div>
+    <div class="metric good"><div class="metric-label">Next up</div><div class="metric-value">${nextUp}</div></div>
+    <div class="metric"><div class="metric-label">In progress</div><div class="metric-value">${inProg}</div></div>
+    <div class="metric"><div class="metric-label">Est. queue clear time</div><div class="metric-value">${totalEta}<small>min</small></div></div>
+  `;
+  document.getElementById('qCount').textContent = queue.length + ' tiers queued';
+}
+
+let dragIdx = null;
+function renderQueue(){
+  document.getElementById('queueList').innerHTML = queue.map((q,i)=>`
+    <div class="q-row ${q.status}" draggable="true" data-idx="${i}">
+      <span class="q-handle" title="drag to reorder">⠿</span>
+      <div>
+        <div style="font-weight:600;">${q.rackId} · Tier ${q.tier}</div>
+        <div class="hint">${q.status==='in-progress'?'harvesting now':q.status==='next-up'?'next up':'queued'}</div>
+      </div>
+      <div class="row"><div class="cov-bar" style="flex:1;height:8px;border-radius:5px;background:var(--bg-elevated);border:1px solid var(--border-strong);overflow:hidden;"><i style="display:block;height:100%;width:${q.coverage}%;background:var(--amber)"></i></div><span class="mono hint" style="width:36px;">${q.coverage}%</span></div>
+      <span class="hint">${M.fmtRel(q.queuedAt)}</span>
+      <span class="mono">~${q.etaMin} min</span>
+      <div class="row">
+        <span class="q-pos">${i+1}</span>
+        <a class="btn btn-ghost btn-sm" href="racks.html?rack=${q.rackId}">View rack</a>
+        <button class="btn btn-danger btn-sm" data-cancel="${q.id}">Cancel</button>
+      </div>
+    </div>
+  `).join('');
+
+  document.querySelectorAll('.q-row').forEach(row=>{
+    row.addEventListener('dragstart', ()=>{ dragIdx = +row.dataset.idx; row.classList.add('dragging'); });
+    row.addEventListener('dragend', ()=> row.classList.remove('dragging'));
+    row.addEventListener('dragover', e=> e.preventDefault());
+    row.addEventListener('drop', ()=>{
+      const dropIdx = +row.dataset.idx;
+      if(dragIdx===null || dragIdx===dropIdx) return;
+      const [moved] = queue.splice(dragIdx,1);
+      queue.splice(dropIdx,0,moved);
+      queue.forEach((q,i)=> q.status = i===0 && q.status!=='in-progress' ? 'next-up' : (q.status==='in-progress'?'in-progress': i<2?'next-up':'queued'));
+      renderQueue();
+      APP.toast(`Queue reordered — ${moved.rackId} T${moved.tier} moved to position ${dropIdx+1}`, {color:'var(--water-bright)'});
+    });
+  });
+  document.querySelectorAll('[data-cancel]').forEach(b=> b.addEventListener('click', ()=>{
+    const q = queue.find(x=>x.id===b.dataset.cancel);
+    queue = queue.filter(x=>x.id!==b.dataset.cancel);
+    renderQueue(); renderMetrics();
+    APP.toast(`Harvest cancelled: ${q.rackId} T${q.tier}`, {color:'var(--red-bright)'});
+  }));
+}
+
+renderMetrics();
+renderQueue();
+</script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dashboard — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+</head>
+<body data-page="dashboard">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>System Overview</h1>
+      <p class="muted" style="margin:0;">Facility A — 2 aisles · 12 racks · 84 tiers</p>
+    </div>
+    <div class="hint mono" id="genTime"></div>
+  </div>
+
+  <div class="section">
+    <div class="grid grid-metrics" id="metricsGrid"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Rack farm</h2>
+      <a class="btn btn-ghost btn-sm" href="racks.html">Open rack view →</a>
+    </div>
+    <div class="grid grid-racks" id="rackStrip"></div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="section">
+      <div class="section-head">
+        <h2>Robot fleet, at a glance</h2>
+        <a class="btn btn-ghost btn-sm" href="robots.html">Open fleet view →</a>
+      </div>
+      <div class="grid grid-robots" id="robotGrid"></div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">
+        <h2>Live alerts</h2>
+        <a class="btn btn-ghost btn-sm" href="reports.html">All reports →</a>
+      </div>
+      <div class="card" id="alertList" style="padding:6px;"></div>
+    </div>
+  </div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('dashboard');
+const M = window.MOCK;
+document.getElementById('genTime').textContent = 'as of ' + M.fmtTime(M.NOW);
+
+// ---- system metrics ----
+const s = M.system;
+const metrics = [
+  { label:'Air temperature', value:s.tempC.toFixed(1), unit:'°C', sub:'greenhouse ambient', cls: s.tempC>32?'bad':s.tempC>29?'warn':'' },
+  { label:'Humidity', value:s.humidity, unit:'%', sub:'greenhouse ambient', cls:'' },
+  { label:'Electricity storage', value:s.electricityPct, unit:'%', sub:'battery bank', cls: s.electricityPct<30?'bad':s.electricityPct<55?'warn':'good', bar:s.electricityPct },
+  { label:'Water catchment', value:s.waterCatchmentPct, unit:'%', sub:'source reservoir', cls: s.waterCatchmentPct<30?'bad':s.waterCatchmentPct<50?'warn':'good', bar:s.waterCatchmentPct },
+  { label:'Harvests queued', value:s.harvestsQueued, unit:'tiers', sub:'≥80% coverage or manual', cls: s.harvestsQueued>6?'warn':'' },
+  { label:'Robots active', value:`${s.activeRobots}/${s.totalRobots}`, unit:'', sub:'harvesting, traveling or inspecting', cls:'' },
+  { label:'Racks anaerobic', value:s.racksAnaerobic, unit:'racks', sub:'cleaning protocol recommended', cls: s.racksAnaerobic>0?'bad':'good' },
+  { label:'Comms backbone', value:s.commsHealth, unit:'', sub:'WiFi backbone · mesh cells nominal', cls: s.commsHealth==='nominal'?'good':'warn' },
+];
+document.getElementById('metricsGrid').innerHTML = metrics.map(m=>`
+  <div class="metric ${m.cls}">
+    <div class="metric-label">${m.label}</div>
+    <div class="metric-value">${m.value}<small>${m.unit}</small></div>
+    <div class="metric-sub">${m.sub}</div>
+    ${m.bar!==undefined?`<div class="metric-bar"><i style="width:${m.bar}%"></i></div>`:''}
+  </div>
+`).join('');
+
+// ---- rack strip ----
+document.getElementById('rackStrip').innerHTML = M.racks.map(r=>{
+  const worst = r.tiers.some(t=>t.anaerobic) ? 'bad' : r.tiers.some(t=>t.status==='ready') ? 'warn' : 'good';
+  return `
+  <a class="card card-hover card-tight" href="racks.html?rack=${r.id}" style="text-decoration:none;">
+    <div class="row-between" style="margin-bottom:8px;">
+      <span class="mono" style="font-weight:600;font-size:12.5px;">${r.id}</span>
+      <span class="pill pill-${worst==='bad'?'bad':worst==='warn'?'warn':'good'}"><span class="pill-dot"></span>${worst==='bad'?'attention':worst==='warn'?'ready':'ok'}</span>
+    </div>
+    <div class="rack-elev">
+      ${r.tiers.map(t=>`<div class="tier-band ${t.anaerobic?'anaerobic':''}"><i style="width:${t.coverage}%"></i></div>`).join('')}
+    </div>
+    <div class="rack-base"></div>
+  </a>`;
+}).join('');
+
+// ---- robot cards ----
+const statusPill = {
+  harvesting:'active', traveling:'active', inspecting:'active',
+  idle:'idle', charging:'idle', cleaning:'warn', error:'bad',
+};
+document.getElementById('robotGrid').innerHTML = M.robots.map(r=>`
+  <a class="card card-hover" href="robots.html?id=${r.id}" style="text-decoration:none;display:block;">
+    <div class="row-between" style="margin-bottom:8px;">
+      <span style="font-weight:600;">${r.id}</span>
+      <span class="pill pill-${statusPill[r.status]}"><span class="pill-dot"></span>${r.status}</span>
+    </div>
+    <div class="muted" style="font-size:12.5px;margin-bottom:10px;">${r.task}</div>
+    <div class="row-between" style="font-size:12px;">
+      <span class="muted">Battery</span>
+      <span class="mono">${r.battery}%</span>
+    </div>
+    <div class="metric-bar" style="margin-top:4px;"><i style="width:${r.battery}%;background:${r.battery<25?'var(--red)':r.battery<50?'var(--amber)':'var(--water)'}"></i></div>
+  </a>
+`).join('');
+
+// ---- alerts ----
+const top = M.alerts.slice(0,6);
+document.getElementById('alertList').innerHTML = top.length ? top.map(a=>`
+  <div class="row" style="padding:10px 10px;border-bottom:1px solid var(--border);">
+    <span class="pill-dot sev-${a.severity}" style="width:7px;height:7px;border-radius:50%;background:currentColor;flex:none;"></span>
+    <div style="flex:1;min-width:0;">
+      <div style="font-size:13px;font-weight:600;">${a.title}</div>
+      <div class="hint">${a.rackId}${a.tier?' · T'+a.tier:''} · ${M.fmtRel(a.time)}</div>
+    </div>
+  </div>
+`).join('') : `<div class="empty">No open alerts. Facility nominal.</div>`;
+</script>
+</body>
+</html>

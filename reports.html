@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reports &amp; Alerts — GoSovereign Duckweed Ops</title>
+<link rel="stylesheet" href="shared/styles.css">
+<style>
+  .alert-row{display:grid;grid-template-columns:16px 1fr 120px 90px;gap:14px;align-items:center;padding:12px 10px;border-bottom:1px solid var(--border);cursor:pointer;}
+  .alert-row:last-child{border-bottom:none;}
+  .alert-row:hover{background:var(--surface-2);}
+  .alert-row.selected{background:var(--surface-2);border-left:2px solid var(--water);}
+  .sev-dot{width:8px;height:8px;border-radius:50%;background:currentColor;}
+  .filter-pills{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+  .filter-pill{padding:5px 12px;border-radius:20px;border:1px solid var(--border-strong);font-size:12px;cursor:pointer;color:var(--text-secondary);}
+  .filter-pill.active{background:var(--surface-2);color:var(--text-primary);border-color:var(--water);}
+</style>
+</head>
+<body data-page="reports">
+<div id="sidebar"></div>
+<div id="topbar"></div>
+
+<main class="content">
+  <div class="page-head">
+    <div>
+      <h1>Reports &amp; alerts</h1>
+      <p class="muted" style="margin:0;">Every alert traces back to a rack, tier or robot — select one to drill in.</p>
+    </div>
+  </div>
+
+  <div class="grid grid-metrics" style="margin-bottom:20px;" id="repMetrics"></div>
+
+  <div class="grid grid-2">
+    <div>
+      <div class="filter-pills" id="filterPills"></div>
+      <div class="card" style="padding:6px 8px;" id="alertListCard"></div>
+    </div>
+    <div id="detail"></div>
+  </div>
+</main>
+
+<script src="shared/data.js"></script>
+<script src="shared/nav.js"></script>
+<script>
+APP.renderShell('reports');
+const M = window.MOCK;
+let filter = 'all';
+let selected = M.alerts[0] ? M.alerts[0].id : null;
+const acked = {};
+
+function renderMetrics(){
+  const crit = M.alerts.filter(a=>a.severity==='critical' && !acked[a.id]).length;
+  const warn = M.alerts.filter(a=>a.severity==='warning' && !acked[a.id]).length;
+  const info = M.alerts.filter(a=>a.severity==='info' && !acked[a.id]).length;
+  document.getElementById('repMetrics').innerHTML = `
+    <div class="metric ${crit?'bad':'good'}"><div class="metric-label">Critical</div><div class="metric-value">${crit}</div></div>
+    <div class="metric ${warn?'warn':''}"><div class="metric-label">Warning</div><div class="metric-value">${warn}</div></div>
+    <div class="metric"><div class="metric-label">Info</div><div class="metric-value">${info}</div></div>
+    <div class="metric"><div class="metric-label">Robots reporting faults</div><div class="metric-value">${M.robots.filter(r=>r.status==='error').length}</div></div>
+  `;
+}
+
+const FILTERS = [
+  {id:'all', label:'All'},
+  {id:'critical', label:'Critical'},
+  {id:'warning', label:'Warning'},
+  {id:'info', label:'Info'},
+];
+document.getElementById('filterPills').innerHTML = FILTERS.map(f=>`<div class="filter-pill ${f.id===filter?'active':''}" data-f="${f.id}">${f.label}</div>`).join('');
+document.querySelectorAll('.filter-pill').forEach(p=> p.addEventListener('click', ()=>{ filter = p.dataset.f; renderAll(); }));
+
+function renderList(){
+  const list = M.alerts.filter(a=> filter==='all' || a.severity===filter);
+  const card = document.getElementById('alertListCard');
+  if(!list.length){ card.innerHTML = `<div class="empty">Nothing here.</div>`; return; }
+  card.innerHTML = list.map(a=>`
+    <div class="alert-row ${a.id===selected?'selected':''}" data-id="${a.id}">
+      <span class="sev-dot sev-${a.severity}"></span>
+      <div>
+        <div style="font-size:13px;font-weight:600;">${a.title}${acked[a.id]?' <span class=\"hint\">(acknowledged)</span>':''}</div>
+        <div class="hint">${a.rackId}${a.tier?' · T'+a.tier:''}</div>
+      </div>
+      <span class="hint">${M.fmtRel(a.time)}</span>
+      <span class="pill pill-${a.severity==='critical'?'bad':a.severity==='warning'?'warn':'active'}">${a.severity}</span>
+    </div>
+  `).join('');
+  document.querySelectorAll('.alert-row').forEach(r=> r.addEventListener('click', ()=>{ selected = r.dataset.id; renderAll(); }));
+}
+
+function renderDetail(){
+  const a = M.alerts.find(x=>x.id===selected);
+  const host = document.getElementById('detail');
+  if(!a){ host.innerHTML = `<div class="card empty">Select an alert to see detail.</div>`; return; }
+  host.innerHTML = `
+    <div class="card">
+      <div class="row" style="margin-bottom:10px;">
+        <span class="sev-dot sev-${a.severity}" style="width:10px;height:10px;"></span>
+        <span class="pill pill-${a.severity==='critical'?'bad':a.severity==='warning'?'warn':'active'}">${a.severity}</span>
+      </div>
+      <h3>${a.title}</h3>
+      <p class="muted" style="font-size:13px;">${a.detail}</p>
+      <div class="card card-tight mono" style="font-size:12px;line-height:1.9;margin:14px 0;">
+        RACK&nbsp;&nbsp;${a.rackId}<br>
+        ${a.tier?`TIER&nbsp;&nbsp;T${a.tier}<br>`:''}
+        ${a.robotId?`ROBOT&nbsp;&nbsp;${a.robotId}<br>`:''}
+        RAISED&nbsp;&nbsp;${M.fmtRel(a.time)}
+      </div>
+      <div class="row">
+        <a class="btn btn-ghost" href="racks.html?rack=${a.rackId}">Open rack</a>
+        ${a.robotId?`<a class="btn btn-ghost" href="robots.html?id=${a.robotId}">Open robot</a>`:''}
+        ${a.tier?`<a class="btn btn-ghost" href="snapshots.html?tier=${a.rackId}-T${a.tier}">View captures</a>`:''}
+        <button class="btn btn-primary" id="ackBtn" ${acked[a.id]?'disabled':''}>${acked[a.id]?'Acknowledged':'Acknowledge'}</button>
+      </div>
+    </div>
+  `;
+  const ackBtn = document.getElementById('ackBtn');
+  if(ackBtn) ackBtn.addEventListener('click', ()=>{ acked[a.id]=true; renderAll(); APP.toast('Alert acknowledged', {color:'var(--water-bright)'}); });
+}
+
+function renderAll(){
+  document.querySelectorAll('.filter-pill').forEach(p=> p.classList.toggle('active', p.dataset.f===filter));
+  renderMetrics(); renderList(); renderDetail();
+}
+renderAll();
+</script>
+</body>
+</html>
